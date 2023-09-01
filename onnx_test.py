@@ -19,10 +19,21 @@ def to_numpy(tensor):
 
 
 if __name__ == '__main__':
-    path = "datasets/test/0+8=？_69146590872302eb7f65d52074da94a7.jpg"
+    filepath = 'code.jpg'
+    import requests
+    res = requests.get("https://example.com/prod-api/captchaImage", verify=False)
+    print(f'resp {res.text}')
+    import json
+    import base64
+    obj = json.loads(res.text)
+    b64str = obj['img']
+    img_content = base64.b64decode(b64str, validate=True)
+    with open(filepath, "wb") as f:
+        f.write(img_content)
+
     onnxFile = 'mathcode.onnx'
 
-    img = Image.open(path)
+    img = Image.open(filepath)
     trans = transforms.Compose([
         transforms.Resize((60, 160)),
         # transforms.Grayscale(),
@@ -37,4 +48,21 @@ if __name__ == '__main__':
     onnx_out = ort_session.run(None, {modelInputName: to_numpy(img_tensor)})
     onnx_out = torch.tensor(np.array(onnx_out))
     onnx_out = onnx_out.view(-1, common.captcha_array.__len__())
-    print(vec2Text(onnx_out))
+    captcha_text = vec2Text(onnx_out)
+    import re
+    captchaRegex = re.compile(r"(?P<oprand1>\d+)(?P<operator>[+×÷-])(?P<oprand2>\d+)(?P<equalSign>=)(?P<questionMark>[\uFF1F\x3f]{1})", re.IGNORECASE | re.MULTILINE | re.UNICODE)
+    re_ret = re.match(captchaRegex, captcha_text)
+    op1 = re_ret.group("oprand1")
+    op2 = re_ret.group("oprand2")
+    opr = re_ret.group("operator")
+    if opr == '+':
+        result = int(op1) + int(op2)
+    elif opr == '-':
+        result = int(op1) - int(op2)
+    elif opr == '×':
+        result = int(op1) * int(op2)
+    elif opr == '÷':
+        result = int(op1) // int(op2)
+    else:
+        raise f"unknown operator {opr}"
+    print(vec2Text(onnx_out), result)

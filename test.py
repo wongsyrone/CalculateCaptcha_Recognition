@@ -12,11 +12,11 @@ from one_hot import vec2Text
 from train import calculat_acc
 
 net = Net()
-
+torch_dev = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 def predict(inputs):
     net.eval()  # 测试模式
-    net.to(torch.device('cuda:0' if torch.cuda.is_available() else 'cpu'))
+    net.to(torch_dev)
     with torch.no_grad():
         outputs = net(inputs)
         outputs = outputs.view(-1, len(common.captcha_array))  # 每16个就是一个字符
@@ -33,7 +33,7 @@ def test():
     model_path = 'model.pth'
     if os.path.exists(model_path):
         print('开始加载模型')
-        checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
+        checkpoint = torch.load(model_path)
         net.load_state_dict(checkpoint['model_state_dict'])
     net.eval()  # 测试模式
     acc, i = 0, 0
@@ -63,7 +63,8 @@ def test_pic(path):
 
     model_path = 'model.pth'
     net.eval()
-    net.load_state_dict(torch.load(model_path, map_location=torch.device('cpu'))['model_state_dict'])
+    net.to(torch_dev)
+    net.load_state_dict(torch.load(model_path)['model_state_dict'])
 
     output = net(img_tensor)
     output = output.view(-1, common.captcha_array.__len__())
@@ -81,7 +82,24 @@ def test_net(url):
     print(test_pic(filepath))
 
 
+def test_net2():
+    filepath = 'code.jpg'
+    import requests
+    res = requests.get("https://example.com/prod-api/captchaImage", verify=False)
+    print(f'resp {res.text}')
+    import json
+    import base64
+    obj = json.loads(res.text)
+    b64str = obj['img']
+    img_content = base64.b64decode(b64str, validate=True)
+    with open(filepath, "wb") as f:
+        f.write(img_content)
+    print(test_pic(filepath))
+
+
 if __name__ == '__main__':
     test()
     # test_net("http://demo.ruoyi.vip/captcha/captchaImage?type=math&s=0.39236748354325024")
     # print(test_pic("datasets/test/0+7=？_75ba9179485bcfa30dd00a09fb027231.jpg"))
+    # test_net2()
+
